@@ -16,12 +16,20 @@ const server = http.createServer((req, res) => {
     const page = await browser.newPage({ viewport: { width: 1024, height: 768 }, hasTouch: true });
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    assert.deepEqual(await page.evaluate(() => S.books.map(b => [b.title,b.questions.length])), [
+      ['中学歴史・鎌倉時代',3],['酸アルカリとイオン',55],['電池とイオン',45],['力の合成・分解',46]
+    ]);
+    // Existing installations receive newly bundled books once, without losing their data.
+    await page.evaluate(() => {S.books=S.books.slice(0,1);S.records={q1:{last:'ok',attempts:1,ok:1}};save()});
+    await page.reload();
+    await page.reload();
+    assert.deepEqual(await page.evaluate(() => [S.books.length,S.records.q1.last,new Set(S.books.map(b=>b.sourceId)).size]), [4,'ok',4]);
     assert.equal(await page.evaluate(() => {
       S.records={q1:{last:'ok'},q2:{last:'repeat'},q3:{last:'hold'}};
       const value=prog(S.books[0]);S.records={};save();home();return value;
     }),33);
     assert.equal(await page.locator('.book .chip').nth(1).textContent(),'進捗 0%');
-    await page.getByRole('button', { name: '学習する', exact: true }).click();
+    await page.getByRole('button', { name: '学習する', exact: true }).first().click();
     await page.locator('.modal').getByRole('button', { name: '学習開始' }).click();
     await page.locator('#flash').click();
     await page.waitForTimeout(480);
