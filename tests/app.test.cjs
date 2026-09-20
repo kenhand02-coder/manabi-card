@@ -21,7 +21,8 @@ const server = http.createServer((req, res) => {
     await page.locator('#flash').click();
     await page.waitForTimeout(480);
     assert.equal(await page.evaluate(() => session.revealed), true);
-    await page.getByRole('button', { name: '✓ できた' }).click();
+    assert.deepEqual(await page.locator('.controls button').allTextContents(), ['← もう一度', '↓ 保留', 'できた →']);
+    await page.getByRole('button', { name: 'できた →' }).click();
     // Finishing during animation must neither record twice nor reopen study later.
     await page.getByRole('button', { name: '終了', exact: true }).click();
     await page.getByRole('button', { name: '結果を表示し続ける' }).click();
@@ -57,8 +58,15 @@ const server = http.createServer((req, res) => {
     await page.getByLabel('難易度').selectOption('発展');
     await page.getByLabel('タグ').fill('用語');
     await page.getByRole('button', { name:'保存',exact:true }).click();
-    const createdId = await page.evaluate(() => editId);
     assert.equal(await page.evaluate(() => S.books[0].questions[0].difficulty), '発展');
+    await page.evaluate(() => bulk());
+    const csv = '\uFEFF問題,答え,ヒント,解説,難易度,タグ\r\n"カンマ,を含む問題","答えA","ヒントA","複数行の\n解説",標準,"用語,重要"\r\n問題B,答えB,,,発展,計算';
+    await page.locator('#csvFile').setInputFiles({name:'questions.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+    await page.waitForFunction(() => S.books[0].questions.length === 3);
+    assert.deepEqual(await page.evaluate(() => {
+      const q=S.books[0].questions[1]; return [q.question,q.explanation,q.difficulty,q.tags];
+    }), ['カンマ,を含む問題','複数行の\n解説','標準','用語,重要']);
+    const createdId = await page.evaluate(() => editId);
     await page.reload();
     assert.equal(await page.evaluate(() => S.books[0].title), 'テスト教材');
     const teacherBook = {format:'manabi-card-book',version:1,book:{id:'teacher',sourceId:'teacher-source',title:'先生教材',subject:'理科',questions:[{id:'stable-q',question:'水の式？',answer:'H₂O'}]}};
@@ -88,7 +96,7 @@ const server = http.createServer((req, res) => {
     assert.equal(exported.book.questions[0].id,'stable-q');
     assert.equal('records' in exported,false);
     // One-card completion and actual five-second return.
-    await page.evaluate(id=>{settings(id);start()},createdId);
+    await page.evaluate(id=>{settings(id);start();session.index=session.questions.length-1;renderStudy()},createdId);
     await page.getByRole('button',{name:'次へ',exact:true}).click();
     assert.equal(await page.locator('.modal h2').textContent(),'全問終了！');
     await page.waitForTimeout(5150);
