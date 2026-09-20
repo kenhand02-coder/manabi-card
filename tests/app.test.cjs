@@ -16,6 +16,11 @@ const server = http.createServer((req, res) => {
     const page = await browser.newPage({ viewport: { width: 1024, height: 768 }, hasTouch: true });
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    assert.equal(await page.evaluate(() => {
+      S.records={q1:{last:'ok'},q2:{last:'repeat'},q3:{last:'hold'}};
+      const value=prog(S.books[0]);S.records={};save();home();return value;
+    }),33);
+    assert.equal(await page.locator('.book .chip').nth(1).textContent(),'進捗 0%');
     await page.getByRole('button', { name: '学習する', exact: true }).click();
     await page.locator('.modal').getByRole('button', { name: '学習開始' }).click();
     await page.locator('#flash').click();
