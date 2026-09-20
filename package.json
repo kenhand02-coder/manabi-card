@@ -1,0 +1,8 @@
+{
+  "name": "manabi-card",
+  "version": "4.3.0",
+  "private": true,
+  "description": "端末内保存の一問一答学習アプリ",
+  "scripts": { "test": "node tests/app.test.cjs" },
+  "devDependencies": { "playwright": "1.58.2" }
+}
